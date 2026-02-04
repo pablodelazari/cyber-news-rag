@@ -22,3 +22,13 @@ Thumbs.db
 
 # Testing
 .pytest_cache/
+
+# Debug & Test Scripts (development only)
+debug_*.py
+test_*.py
+quick_debug.py
+reproduce_success.py
+verify_production_api.py
+show_real_data.py
+real_data_output.txt
+

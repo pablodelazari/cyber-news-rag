@@ -8,6 +8,7 @@ paths:
   vector_store: "qdrant_db"
 
 collection:
+  method: "api" # Options: mock, api
   source_url: "https://hackerone.com/hacktivity"
   schedule_interval_hours: 6
   reports_limit_per_run: 50

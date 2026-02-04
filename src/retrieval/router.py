@@ -1,5 +1,16 @@
 from loguru import logger
 
+# Security-related keywords that should ALWAYS use knowledge_base
+SECURITY_KEYWORDS = [
+    "xss", "injection", "sql", "csrf", "ssrf", "rce", "lfi", "rfi",
+    "vulnerability", "vulnerabilidade", "exploit", "payload", "attack",
+    "ataque", "hack", "breach", "leak", "vazamento", "cve", "cwe",
+    "owasp", "llm", "prompt", "bypass", "escalation", "privilege",
+    "authentication", "authorization", "disclosure", "sensitive",
+    "critical", "crítica", "high", "severity", "bounty", "report",
+    "relatório", "hackerone", "bugbounty", "pentest", "redteam"
+]
+
 class QueryRouter:
     def __init__(self, llm):
         self.llm = llm
@@ -8,6 +19,14 @@ class QueryRouter:
         """
         Decides the strategy: 'knowledge_base', 'web_search', or 'direct_answer'.
         """
+        query_lower = query.lower()
+        
+        # Force knowledge_base for security-related queries
+        for keyword in SECURITY_KEYWORDS:
+            if keyword in query_lower:
+                logger.info(f"Router: Detected security keyword '{keyword}' - forcing knowledge_base")
+                return "knowledge_base"
+        
         prompt = f"""
         Analise a pergunta e decida a melhor estratégia de recuperação de informação:
 
@@ -34,3 +53,4 @@ class QueryRouter:
         except Exception as e:
             logger.error(f"Router failed: {e}")
             return "knowledge_base"
+

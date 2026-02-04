@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from loguru import logger
 from src.collector.scraper import HackerOneScraper
+from src.collector.api_client import HackerOneAPIClient
 from src.processing.chunker import chunker
 from src.processing.embedder import Embedder
 from src.storage.vector_store import VectorDB
@@ -47,13 +48,32 @@ async def run_pipeline(query: str):
     retriever = Retriever(vector_store, embedder, llm)
     router = QueryRouter(llm)
     
-    # Scraper
-    scraper = HackerOneScraper(headless=True)
-
-    # --- STEP 1: INGESTION (Mock/Real) ---
+    # --- STEP 1: INGESTION ---
     logger.info("Checking for new reports...")
-    # In a real app, logic would check if scrape is needed (e.g., date check)
-    reports = scraper.fetch_new_reports(limit=3)
+    
+    reports = []
+    
+    # Try API first if configured
+    if config.get("collection", {}).get("method") == "api":
+        try:
+            logger.info("Attempting to fetch real data from HackerOne API...")
+            api_client = HackerOneAPIClient()
+            reports = api_client.fetch_new_reports(limit=3)
+            
+            if not reports:
+                logger.warning("API returned no reports (or failed). Falling back to Mock Data for stability.")
+                raise Exception("API returned empty list")
+                
+        except Exception as e:
+            logger.error(f"API Failure: {e}")
+            logger.info("🔄 ACTIVATING FALLBACK: Switching to Mock Scraper to ensure system operational status.")
+            scraper = HackerOneScraper(headless=True)
+            reports = scraper.fetch_new_reports(limit=3)
+            
+    else:
+        # Default Mock Mode
+        scraper = HackerOneScraper(headless=True)
+        reports = scraper.fetch_new_reports(limit=3)
     
     if reports:
         logger.info(f"Found {len(reports)} reports. Processing...")
@@ -87,24 +107,44 @@ async def run_pipeline(query: str):
     logger.info(f"Routing Strategy: {strategy.upper()}")
 
     context = []
+    sources = []  # Store source links for citation
+    
     if strategy == "knowledge_base":
         logger.info("Retrieving context from Knowledge Base...")
         results = retriever.hyde_search(query, k=5)
-        context = [res.payload['page_content'] for res in results]
+        for res in results:
+            payload = res.payload
+            context.append(payload.get('page_content', ''))
+            # Extract source info from nested metadata
+            meta = payload.get('metadata', {})
+            sources.append({
+                'title': meta.get('title', 'Unknown'),
+                'link': meta.get('link', 'N/A'),
+                'severity': meta.get('severity', 'N/A')
+            })
         logger.info(f"Retrieved {len(context)} documents.")
         
     elif strategy == "web_search":
         logger.warning("Web Search requested but not implemented. Falling back to Knowledge Base.")
         results = retriever.standard_search(query, k=5)
-        context = [res.payload['page_content'] for res in results]
+        for res in results:
+            payload = res.payload
+            context.append(payload.get('page_content', ''))
+            meta = payload.get('metadata', {})
+            sources.append({
+                'title': meta.get('title', 'Unknown'),
+                'link': meta.get('link', 'N/A'),
+                'severity': meta.get('severity', 'N/A')
+            })
         
     elif strategy == "direct_answer":
         logger.info("Direct answer mode (no context needed).")
         context = []
+        sources = []
 
     # --- STEP 3: GENERATION ---
     logger.info("Generating answer...")
-    answer = llm.generate_answer(query, context)
+    answer = llm.generate_answer(query, context, sources)
     
     print("\n" + "="*50)
     print(f"QUERY: {query}")

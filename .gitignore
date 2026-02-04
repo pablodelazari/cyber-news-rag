@@ -1,0 +1,24 @@
+# Environment Variables
+.env
+.venv
+env/
+venv/
+__pycache__/
+
+# Local Data & Logs
+data/raw/*
+data/processed/*
+logs/*
+qdrant_db/
+qdrant_storage/
+
+# IDE settings
+.vscode/
+.idea/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/

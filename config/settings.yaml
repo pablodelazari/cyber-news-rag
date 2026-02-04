@@ -1,0 +1,28 @@
+project_name: "Cyber News RAG"
+version: "0.1.0"
+
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  logs: "logs"
+  vector_store: "qdrant_db"
+
+collection:
+  source_url: "https://hackerone.com/hacktivity"
+  schedule_interval_hours: 6
+  reports_limit_per_run: 50
+
+processing:
+  chunk_size: 1000
+  chunk_overlap: 200
+  embedding_model: "all-MiniLM-L6-v2"
+
+vector_db:
+  collection_name: "hackerone_reports"
+  vector_size: 384 # 384 for all-MiniLM-L6-v2
+
+llm:
+  provider: "ollama" # Options: gemini, ollama
+  model_name: "llama3" # Or mistral, deepseek-r1, etc.
+  base_url: "http://localhost:11434"
+  temperature: 0.7
